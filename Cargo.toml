@@ -1,0 +1,34 @@
+[package]
+name = "firefly-api"
+version = "0.1.0"
+edition = "2021"
+authors = ["Yangchen Ye <eikasia30@gmail.com>"]
+
+[package.metadata.release]
+release = false
+
+# https://github.com/rustwasm/wasm-pack/issues/1247
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+worker = { version = "0.5.0", features = ['http', 'axum'] }
+worker-macros = { version = "0.6.0", features = ['http'] }
+axum = { version = "0.8.4", default-features = false, features = ["macros", "query"] }
+tower-service = "0.3.3"
+console_error_panic_hook = { version = "0.1.7" }
+rspotify = "0.14.0"
+serde = { version = "1.0.219", features = ["derive"] }
+time = "0.3.41"
+axum-cloudflare-adapter = "0.14.0"
+wasm-bindgen-futures = "0.4.50"
+oneshot = "0.1.11"
+
+# optimize for code size
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
