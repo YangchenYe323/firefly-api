@@ -23,7 +23,7 @@ pub enum ApiV1Response {
 
 impl IntoResponse for ApiV1Response {
     fn into_response(self) -> Response<Body> {
-        match self {
+        let mut response = match self {
             Self::Ok(body) => (StatusCode::OK, body).into_response(),
             Self::TemporaryRedirect(redirect) => {
                 let mut response = redirect.into_response();
@@ -36,7 +36,30 @@ impl IntoResponse for ApiV1Response {
                 response
             }
             Self::Error { status, message } => (status, message).into_response(),
-        }
+        };
+
+        // Allow all origins to access the API.
+        response.headers_mut().insert(
+            "Access-Control-Allow-Origin",
+            HeaderValue::from_str("*").unwrap(),
+        );
+        // Allow all methods to access the API.
+        response.headers_mut().insert(
+            "Access-Control-Allow-Methods",
+            HeaderValue::from_str("GET, POST, PUT, DELETE, OPTIONS").unwrap(),
+        );
+        // Allow all headers to access the API.
+        response.headers_mut().insert(
+            "Access-Control-Allow-Headers",
+            HeaderValue::from_str("*").unwrap(),
+        );
+        // Allow caching of access control header values for 1 day.
+        response.headers_mut().insert(
+            "Access-Control-Max-Age",
+            HeaderValue::from_str("86400").unwrap(),
+        );
+
+        response
     }
 }
 
