@@ -1,7 +1,10 @@
 mod api;
 
+use std::collections::HashMap;
+
 use axum::Router;
 use axum_cloudflare_adapter::EnvWrapper;
+use http::HeaderValue;
 use tower_service::Service;
 use worker::*;
 
@@ -28,6 +31,16 @@ async fn fetch(
     let state = AppState {
         env: EnvWrapper::new(env),
     };
+
+    if req.method() == "OPTIONS" {
+        let mut response = axum::http::Response::new(axum::body::Body::empty());
+        response.headers_mut().insert("Access-Control-Allow-Origin", HeaderValue::from_str("*").unwrap());
+        response.headers_mut().insert("Access-Control-Allow-Methods", HeaderValue::from_str("GET, POST, PUT, DELETE, OPTIONS").unwrap());
+        response.headers_mut().insert("Access-Control-Allow-Headers", HeaderValue::from_str("*").unwrap());
+        response.headers_mut().insert("Access-Control-Max-Age", HeaderValue::from_str("86400").unwrap());
+        return Ok(response);
+    }
+
 
     Ok(router(state).call(req).await?)
 }
