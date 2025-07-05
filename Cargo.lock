@@ -408,6 +408,7 @@ dependencies = [
  "axum-cloudflare-adapter",
  "base64",
  "console_error_panic_hook",
+ "futures",
  "http",
  "oneshot",
  "reqwest",
