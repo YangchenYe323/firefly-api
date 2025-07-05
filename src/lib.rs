@@ -1,7 +1,5 @@
 mod api;
 
-use std::collections::HashMap;
-
 use axum::Router;
 use axum_cloudflare_adapter::EnvWrapper;
 use http::HeaderValue;

@@ -5,7 +5,6 @@ use base64::Engine;
 use http::{HeaderMap, HeaderValue, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use wasm_bindgen_test::console_log;
 
 #[derive(Debug, Deserialize)]
 pub struct SearchSongQuery {
