@@ -180,8 +180,7 @@ async fn fetch_song(
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("Failed to parse lyrics"))?;
     // Fetch lyrics
-    let lyrics_fragment =
-        decode_and_format_lyrics(&title, lyrics_base64, segments)?;
+    let lyrics_fragment = decode_and_format_lyrics(lyrics_base64, segments)?;
     Ok(Song {
         title,
         artist,
@@ -191,7 +190,6 @@ async fn fetch_song(
 }
 
 fn decode_and_format_lyrics(
-    title: &str,
     raw_base64_lyrics: &str,
     segments: usize,
 ) -> anyhow::Result<String> {
@@ -200,7 +198,7 @@ fn decode_and_format_lyrics(
         .map_err(|e| anyhow::anyhow!("Failed to decode lyrics: {}", e))?;
     let lyrics = String::from_utf8(decoded)
         .map_err(|e| anyhow::anyhow!("Failed to convert lyrics to UTF-8: {}", e))?;
-    Ok(format_lyrics(title, &lyrics, segments))
+    Ok(format_lyrics(&lyrics, segments))
 }
 
 /// The QQ Music API returns lyrics in the below format:
@@ -213,7 +211,7 @@ fn decode_and_format_lyrics(
 /// "作词：", "作曲：", "演唱：", "编曲：", "吉他：", "混音：", "制作人：",
 /// "商用授权：", "【未经著作权人许可不得翻唱翻录或使用】")
 /// and returns the first 5 non-empty lyrics lines in a string
-fn format_lyrics(title: &str, lyrics: &str, segments: usize) -> String {
+fn format_lyrics(lyrics: &str, segments: usize) -> String {
     lyrics
         .lines()
         .map(|line| {
@@ -229,13 +227,8 @@ fn format_lyrics(title: &str, lyrics: &str, segments: usize) -> String {
             line.to_string()
         })
         .filter(|line| !line.trim().is_empty()) // Remove empty lines
-        .filter(|line| {
-            // Filter out credit lines (lines containing "：" followed by names/info)
-            let trimmed = line.trim();
-            !trimmed.contains("：") &&  // Filter out lines like "作词："
-            !trimmed.contains("【") && // Filter out lines like 【未经著作权人许可不得翻唱翻录或使用】
-            !trimmed.contains(title) // Filter out lines that contain the title
-        })
+        .filter(|line| !line.contains("：")) // Filter out lines like "作词："
+        .filter(|line| !line.contains("【")) // Filter out lines like 【未经著作权人许可不得翻唱翻录或使用】
         .take(segments) // Keep only first 5 non-empty lines
         .collect::<Vec<String>>()
         .join("\n")
