@@ -10,10 +10,7 @@ use rspotify::{
 };
 use serde::Deserialize;
 
-use crate::{
-    api::v1::{ApiV1Response},
-    AppState,
-};
+use crate::{api::v1::ApiV1Response, AppState};
 
 #[derive(Debug, Deserialize)]
 pub enum ArtworkSize {
@@ -66,7 +63,11 @@ pub async fn get_artwork(
     State(state): State<AppState>,
     Query(query): Query<GetArtworkQuery>,
 ) -> ApiV1Response {
-    let GetArtworkQuery { title, artist, size } = query;
+    let GetArtworkQuery {
+        title,
+        artist,
+        size,
+    } = query;
 
     let credential = {
         let Ok(client_id) = state.env.env.var("SPOTIFY_WEB_API_CLIENT_ID") else {
@@ -137,7 +138,6 @@ pub async fn get_artwork(
                 .iter()
                 .find(|image| image.width == Some(width) && image.height == Some(height))
             else {
-
                 return ApiV1Response::Error {
                     status: StatusCode::INTERNAL_SERVER_ERROR,
                     message: "No image found".to_string(),
