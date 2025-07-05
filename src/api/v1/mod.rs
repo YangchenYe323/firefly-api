@@ -1,4 +1,5 @@
 mod artwork;
+mod song;
 
 use axum::{
     body::Body,
@@ -12,14 +13,21 @@ use crate::AppState;
 
 #[derive(Debug)]
 pub enum ApiV1Response {
+    /// A 200 response with JSON body
+    Ok(String),
+    /// A 307 redirect
     TemporaryRedirect(Redirect),
-    Redirect(Redirect),
+    /// Error response with a status code and message
     Error { status: StatusCode, message: String },
 }
 
-impl IntoResponse for ApiV1Response {
+impl IntoResponse for ApiV1Response
+{
     fn into_response(self) -> Response<Body> {
         match self {
+            Self::Ok(body) => {
+                (StatusCode::OK, body).into_response()
+            }
             Self::TemporaryRedirect(redirect) => {
                 let mut response = redirect.into_response();
                 // We use temporary redirect for things like redirecting to the artwork URL hosted on spotify, we'd like it to be aggresively
@@ -30,7 +38,6 @@ impl IntoResponse for ApiV1Response {
                 );
                 response
             }
-            Self::Redirect(redirect) => redirect.into_response(),
             Self::Error { status, message } => (status, message).into_response(),
         }
     }
@@ -39,5 +46,6 @@ impl IntoResponse for ApiV1Response {
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/artwork", get(artwork::get_artwork))
+        .route("/song/search", get(song::search_song))
         .with_state(state)
 }

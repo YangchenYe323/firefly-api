@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Yangchen Ye <eikasia30@gmail.com>"]
 
+[package.metadata.cargo-shear]
+# axum-cloudflare-adapter macros uses these crates
+ignored = ["wasm-bindgen-futures", "oneshot"]
+
 [package.metadata.release]
 release = false
 
@@ -16,16 +20,22 @@ crate-type = ["cdylib"]
 
 [dependencies]
 worker = { version = "0.5.0", features = ['http', 'axum'] }
-worker-macros = { version = "0.6.0", features = ['http'] }
 axum = { version = "0.8.4", default-features = false, features = ["macros", "query"] }
 tower-service = "0.3.3"
 console_error_panic_hook = { version = "0.1.7" }
 rspotify = "0.14.0"
 serde = { version = "1.0.219", features = ["derive"] }
-time = "0.3.41"
 axum-cloudflare-adapter = "0.14.0"
 wasm-bindgen-futures = "0.4.50"
 oneshot = "0.1.11"
+reqwest = { version = "0.12.22", features = ["json"] }
+http = "1.3.1"
+serde_json = "1.0.140"
+anyhow = "1.0.98"
+base64 = "0.22.1"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.50"
 
 # optimize for code size
 [profile.release]
