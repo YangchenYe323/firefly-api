@@ -9,6 +9,14 @@ jobs:
     name: Deploy
     steps:
       - uses: actions/checkout@v4
+      - name: Check if secret exists
+        run: |
+        if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+          echo "Secret CLOUDFLARE_API_TOKEN is not set or is empty"
+          exit 1
+        else
+          echo "Secret CLOUDFLARE_API_TOKEN is set"
+        fi
       - name: Deploy
         uses: cloudflare/wrangler-action@v3
         with:
