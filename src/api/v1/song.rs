@@ -1,5 +1,5 @@
-use axum::extract::Query;
 use crate::api::v1::ApiV1Response;
+use axum::extract::Query;
 use axum_cloudflare_adapter::wasm_compat;
 use base64::Engine;
 use http::{HeaderMap, HeaderValue, StatusCode};
@@ -8,7 +8,10 @@ use serde_json::Value;
 
 #[derive(Debug, Deserialize)]
 pub struct SearchSongQuery {
+    /// The title of the song to search for.
     title: String,
+    /// The number of segments to return.
+    segments: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -31,12 +34,12 @@ pub struct Song {
 }
 
 /// Cloudflare worker API for searching song information
-/// 
+///
 /// The query parameters are:
 /// - title: The title of the song to search for.
-/// 
+///
 /// # Returns
-/// 
+///
 /// - 200 OK: A JSON object containing a list of songs that match the searched title.
 /// - 400 Bad Request: If the title is empty.
 /// - 500 Internal Server Error: If there is an error with the QQ Music API.
@@ -44,10 +47,12 @@ pub struct Song {
 pub async fn search_song(Query(query): Query<SearchSongQuery>) -> ApiV1Response {
     let songs = match qq_music_search_song(query).await {
         Ok(songs) => songs,
-        Err(e) => return ApiV1Response::Error {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            message: e.to_string(),
-        },
+        Err(e) => {
+            return ApiV1Response::Error {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                message: e.to_string(),
+            }
+        }
     };
     ApiV1Response::Ok(serde_json::to_string(&songs).unwrap())
 }
@@ -115,7 +120,9 @@ async fn qq_music_search_song(query: SearchSongQuery) -> anyhow::Result<Songs> {
     // Only take the first 3 results.
     let len = if data.len() > 3 { 3 } else { data.len() };
 
-    let mut songs = Vec::with_capacity(len);
+    let mut futs = Vec::with_capacity(len);
+    // Default to 5 segments.
+    let segments = query.segments.unwrap_or(5) as usize;
 
     for song_data in data.into_iter().take(len) {
         let title = song_data["songname"]
@@ -135,51 +142,77 @@ async fn qq_music_search_song(query: SearchSongQuery) -> anyhow::Result<Songs> {
         let songmid = song_data["songmid"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Failed to parse song mid"))?;
-        let lyrics_response = cli
-            .get("https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg")
-            .query(&[
-                ("format", "json"),
-                ("outCharset", "utf-8"),
-                ("songmid", songmid),
-            ])
-            .send()
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to send lyrics request: {}", e))?
-            .error_for_status()?;
 
-        let lyrics_result: Value = lyrics_response.json().await.map_err(|e| anyhow::anyhow!("Failed to parse lyrics response: {}", e))?;
-        let lyrics_base64= lyrics_result["lyric"].as_str().ok_or_else(|| anyhow::anyhow!("Failed to parse lyrics"))?;
-        // Fetch lyrics
-        let lyrics_fragment = decode_and_format_lyrics(&title, lyrics_base64)?;
-
-        songs.push(Song {
-            title,
-            artist,
-            album,
-            lyrics_fragment,
-        });
+        futs.push(fetch_song(&cli, songmid, title, artist, album, segments));
     }
+
+    let songs = futures::future::join_all(futs).await.into_iter().collect::<anyhow::Result<Vec<Song>>>()?;
 
     Ok(Songs { songs })
 }
 
-fn decode_and_format_lyrics(title: &str, raw_base64_lyrics: &str) -> anyhow::Result<String> {
-    let decoded = base64::engine::general_purpose::STANDARD.decode(raw_base64_lyrics).map_err(|e| anyhow::anyhow!("Failed to decode lyrics: {}", e))?;
-    let lyrics = String::from_utf8(decoded).map_err(|e| anyhow::anyhow!("Failed to convert lyrics to UTF-8: {}", e))?;
-    Ok(format_lyrics(title, &lyrics))
+async fn fetch_song(
+    cli: &reqwest::Client,
+    songmid: &str,
+    title: String,
+    artist: String,
+    album: String,
+    segments: usize,
+) -> anyhow::Result<Song> {
+    let lyrics_response = cli
+        .get("https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg")
+        .query(&[
+            ("format", "json"),
+            ("outCharset", "utf-8"),
+            ("songmid", songmid),
+        ])
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to send lyrics request: {}", e))?
+        .error_for_status()?;
+
+    let lyrics_result: Value = lyrics_response
+        .json()
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to parse lyrics response: {}", e))?;
+    let lyrics_base64 = lyrics_result["lyric"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Failed to parse lyrics"))?;
+    // Fetch lyrics
+    let lyrics_fragment =
+        decode_and_format_lyrics(&title, lyrics_base64, segments)?;
+    Ok(Song {
+        title,
+        artist,
+        album,
+        lyrics_fragment,
+    })
+}
+
+fn decode_and_format_lyrics(
+    title: &str,
+    raw_base64_lyrics: &str,
+    segments: usize,
+) -> anyhow::Result<String> {
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(raw_base64_lyrics)
+        .map_err(|e| anyhow::anyhow!("Failed to decode lyrics: {}", e))?;
+    let lyrics = String::from_utf8(decoded)
+        .map_err(|e| anyhow::anyhow!("Failed to convert lyrics to UTF-8: {}", e))?;
+    Ok(format_lyrics(title, &lyrics, segments))
 }
 
 /// The QQ Music API returns lyrics in the below format:
-/// 
+///
 /// ```
 /// [tag]content\n[tag]content\n[tag]content\n[tag]content\n[tag]content\n
 /// ```
-/// 
-/// This function strips the tag, filters out credit lines (e.g., 
+///
+/// This function strips the tag, filters out credit lines (e.g.,
 /// "作词：", "作曲：", "演唱：", "编曲：", "吉他：", "混音：", "制作人：",
 /// "商用授权：", "【未经著作权人许可不得翻唱翻录或使用】")
 /// and returns the first 5 non-empty lyrics lines in a string
-fn format_lyrics(title: &str, lyrics: &str) -> String {
+fn format_lyrics(title: &str, lyrics: &str, segments: usize) -> String {
     lyrics
         .lines()
         .map(|line| {
@@ -202,7 +235,7 @@ fn format_lyrics(title: &str, lyrics: &str) -> String {
             !trimmed.contains("【") && // Filter out lines like 【未经著作权人许可不得翻唱翻录或使用】
             !trimmed.contains(title) // Filter out lines that contain the title
         })
-        .take(5) // Keep only first 5 non-empty lines
+        .take(segments) // Keep only first 5 non-empty lines
         .collect::<Vec<String>>()
         .join("\n")
 }
@@ -216,7 +249,12 @@ mod tests {
     #[ignore = "Ignore test that needs network acccess"]
     #[wasm_bindgen_test]
     async fn test_qq_music_search_song() {
-        let songs = qq_music_search_song(SearchSongQuery { title: "第57次取消发送".to_string() }).await.unwrap();
+        let songs = qq_music_search_song(SearchSongQuery {
+            title: "第57次取消发送".to_string(),
+            segments: Some(10),
+        })
+        .await
+        .unwrap();
         console_log!("{:?}", songs);
     }
 }

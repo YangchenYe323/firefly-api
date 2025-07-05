@@ -21,13 +21,10 @@ pub enum ApiV1Response {
     Error { status: StatusCode, message: String },
 }
 
-impl IntoResponse for ApiV1Response
-{
+impl IntoResponse for ApiV1Response {
     fn into_response(self) -> Response<Body> {
         match self {
-            Self::Ok(body) => {
-                (StatusCode::OK, body).into_response()
-            }
+            Self::Ok(body) => (StatusCode::OK, body).into_response(),
             Self::TemporaryRedirect(redirect) => {
                 let mut response = redirect.into_response();
                 // We use temporary redirect for things like redirecting to the artwork URL hosted on spotify, we'd like it to be aggresively
