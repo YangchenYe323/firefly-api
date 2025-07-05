@@ -1,7 +1,9 @@
 on:
-  push:
-    branches:
-      - main
+  # Somehow this doesn't work, so I'm disabling and deploy manually for now.
+  workflow_dispatch:
+  # push:
+    # branches:
+      # - main
 
 jobs:
   deploy:
