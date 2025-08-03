@@ -13,6 +13,7 @@ impl BiliClient {
             .header("Referer", "https://www.bilibili.com/")
             .send()
             .await?
+            .error_for_status()?
             .json::<ResWbi>()
             .await?;
         Ok((

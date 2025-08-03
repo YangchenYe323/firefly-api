@@ -51,7 +51,6 @@ jobs:
           SPOTIFY_WEB_API_CLIENT_ID: ${{ secrets.SPOTIFY_WEB_API_CLIENT_ID }}
           SPOTIFY_WEB_API_CLIENT_SECRET: ${{ secrets.SPOTIFY_WEB_API_CLIENT_SECRET }}
           SPOTIFY_WEB_API_REDIRECT_URI: ${{ secrets.SPOTIFY_WEB_API_REDIRECT_URI }}
-
       - name: Comment PR
         uses: actions/github-script@v7
         with:
