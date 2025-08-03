@@ -8,3 +8,10 @@ command = "cargo install -q worker-build && worker-build --release"
 [[r2_buckets]]
 bucket_name = "firefly-bilibili"
 binding = "firefly_bilibili"
+
+[env.preview]
+name = "firefly-api-preview"
+# Inherits secrets from production by default
+
+[env.production]
+name = "firefly-api"

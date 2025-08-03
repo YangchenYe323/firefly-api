@@ -43,7 +43,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --name firefly-api-pr-${{ github.event.number }} --compatibility-date 2025-06-22
+          command: deploy --name firefly-api-pr-${{ github.event.number }} --compatibility-date 2025-06-22 --env preview
           workingDirectory: '.'
 
       - name: Comment PR
@@ -51,7 +51,7 @@ jobs:
         with:
           script: |
             const prNumber = context.issue.number;
-            const previewUrl = `https://firefly-api-pr-${prNumber}.your-subdomain.workers.dev`;
+            const previewUrl = `https://firefly-api-pr-${prNumber}.eikasia30.workers.dev`;
             
             // Find existing preview comment
             const comments = await github.rest.issues.listComments({
