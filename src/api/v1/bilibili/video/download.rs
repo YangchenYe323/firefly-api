@@ -60,17 +60,6 @@ pub async fn download(
 
     let client = BiliClient::new(credential);
 
-    let wbi_keys = match client.get_wbi_keys().await {
-        Ok(wbi_keys) => wbi_keys,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to get wbi keys");
-            return ApiV1Response::Error {
-                status: StatusCode::INTERNAL_SERVER_ERROR,
-                message: "Failed to get wbi keys".to_string(),
-            };
-        }
-    };
-
     let info = match client.video_info(bvid.clone()).await {
         Ok(info) => info,
         Err(e) => {
@@ -78,6 +67,17 @@ pub async fn download(
             return ApiV1Response::Error {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 message: "Failed to get video info".to_string(),
+            };
+        }
+    };
+
+    let wbi_keys = match client.get_wbi_keys().await {
+        Ok(wbi_keys) => wbi_keys,
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to get wbi keys");
+            return ApiV1Response::Error {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                message: "Failed to get wbi keys".to_string(),
             };
         }
     };
