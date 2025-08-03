@@ -17,15 +17,16 @@ impl BiliClient {
         //     .json::<ResWbi>()
         //     .await?;
 
-        let body = self
+        let resp = self
             .get("https://api.bilibili.com/x/web-interface/nav")
             .header("Referer", "https://www.bilibili.com/")
             .send()
-            .await?
-            .error_for_status()?
-            .text()
             .await?;
+            // .error_for_status()?
+            // .text()
+            // .await?;
 
+        let body = resp.text().await?;
         tracing::info!("wbi body: {}", body);
 
         let ResWbi {
