@@ -6,16 +6,32 @@ use instant::{SystemTime};
 
 impl BiliClient {
     pub async fn get_wbi_keys(&self) -> Result<(String, String), reqwest::Error> {
-        let ResWbi {
-            data: Data { wbi_img },
-        } = self
+        // let ResWbi {
+        //     data: Data { wbi_img },
+        // } = self
+        //     .get("https://api.bilibili.com/x/web-interface/nav")
+        //     .header("Referer", "https://www.bilibili.com/")
+        //     .send()
+        //     .await?
+        //     .error_for_status()?
+        //     .json::<ResWbi>()
+        //     .await?;
+
+        let body = self
             .get("https://api.bilibili.com/x/web-interface/nav")
             .header("Referer", "https://www.bilibili.com/")
             .send()
             .await?
             .error_for_status()?
-            .json::<ResWbi>()
+            .text()
             .await?;
+
+        tracing::info!("wbi body: {}", body);
+
+        let ResWbi {
+            data: Data { wbi_img },
+        } = serde_json::from_str(&body).unwrap();
+
         Ok((
             take_filename(wbi_img.img_url).unwrap(),
             take_filename(wbi_img.sub_url).unwrap(),
