@@ -43,8 +43,14 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --name firefly-api-pr-${{ github.event.number }} --compatibility-date 2025-06-22 --env preview
+          command: deploy --name firefly-api-pr-${{ github.event.number }} --compatibility-date 2025-06-22
           workingDirectory: '.'
+        env:
+          FIREFLY_API_AUTHN_TOKEN: ${{ secrets.FIREFLY_API_AUTHN_TOKEN }}
+          BILIBILI_SESSDATA: ${{ secrets.BILIBILI_SESSDATA }}
+          SPOTIFY_WEB_API_CLIENT_ID: ${{ secrets.SPOTIFY_WEB_API_CLIENT_ID }}
+          SPOTIFY_WEB_API_CLIENT_SECRET: ${{ secrets.SPOTIFY_WEB_API_CLIENT_SECRET }}
+          SPOTIFY_WEB_API_REDIRECT_URI: ${{ secrets.SPOTIFY_WEB_API_REDIRECT_URI }}
 
       - name: Comment PR
         uses: actions/github-script@v7
