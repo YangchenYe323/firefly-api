@@ -1,0 +1,21 @@
+name: Workers PR Preview
+
+on: [pull_request]
+
+jobs:
+  preview_app1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shidil/cloudflare-workers-preview@v1
+        id: preview_step
+        with:
+          cf_token: ${{ secrets.CF_API_TOKEN }}
+          cf_account: ${{ secrets.CF_ACCOUNT_ID }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          domain: eikasia30.workers.dev
+          project_path: .
+          build: |
+            cargo install -q worker-build && cargo build --release
+      - name: Get the preview_url
+        run: echo "url => ${{ steps.preview_step.outputs.preview_url }}"

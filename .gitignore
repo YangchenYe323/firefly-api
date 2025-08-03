@@ -2,3 +2,6 @@ target
 node_modules
 .wrangler
 .dev.vars
+
+# test request json file
+request.json

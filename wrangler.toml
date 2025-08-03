@@ -4,3 +4,7 @@ compatibility_date = "2025-06-22"
 
 [build]
 command = "cargo install -q worker-build && worker-build --release"
+
+[[r2_buckets]]
+bucket_name = "firefly-bilibili"
+binding = "firefly_bilibili"

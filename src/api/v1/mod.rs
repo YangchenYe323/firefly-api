@@ -1,11 +1,12 @@
 mod artwork;
+mod bilibili;
 mod song;
 
 use axum::{
     body::Body,
     http::{HeaderValue, Response, StatusCode},
     response::{IntoResponse, Redirect},
-    routing::get,
+    routing::{get, post},
     Router,
 };
 
@@ -67,5 +68,6 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/artwork", get(artwork::get_artwork))
         .route("/song/search", get(song::search_song))
+        .route("/bilibili/video/download", post(bilibili::video::download::download))
         .with_state(state)
 }

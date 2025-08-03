@@ -76,11 +76,10 @@ async fn qq_music_search_song(query: SearchSongQuery) -> anyhow::Result<Songs> {
             HeaderValue::from_str("c.y.qq.com").expect("Failed to parse host"),
         );
 
-        let cli = reqwest::Client::builder()
+        reqwest::Client::builder()
             .default_headers(default_headers)
             .build()
-            .expect("Failed to build client");
-        cli
+            .expect("Failed to build client")
     };
 
     // First, we do a keyword search using the title
@@ -124,7 +123,7 @@ async fn qq_music_search_song(query: SearchSongQuery) -> anyhow::Result<Songs> {
     // Default to 5 segments.
     let segments = query.segments.unwrap_or(5) as usize;
 
-    for song_data in data.into_iter().take(len) {
+    for song_data in data.iter().take(len) {
         let title = song_data["songname"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Failed to parse song title"))?
