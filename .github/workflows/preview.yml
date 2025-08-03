@@ -1,21 +1,133 @@
-name: Workers PR Preview
+name: Preview Deployment
 
-on: [pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_target:
+    types: [closed]
 
 jobs:
-  preview_app1:
+  deploy-preview:
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
+    name: Deploy Preview
+    
     steps:
-      - uses: actions/checkout@v2
-      - uses: shidil/cloudflare-workers-preview@v1
-        id: preview_step
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          cf_token: ${{ secrets.CF_API_TOKEN }}
-          cf_account: ${{ secrets.CF_ACCOUNT_ID }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          domain: eikasia30.workers.dev
-          project_path: .
-          build: |
-            cargo install -q worker-build && worker-build --release
-      - name: Get the preview_url
-        run: echo "url => ${{ steps.preview_step.outputs.preview_url }}"
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: cargo install -q worker-build && worker-build --release
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --name firefly-api-pr-${{ github.event.number }} --compatibility-date 2025-06-22
+          workingDirectory: '.'
+
+      - name: Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const previewUrl = `https://firefly-api-pr-${prNumber}.your-subdomain.workers.dev`;
+            
+            // Find existing preview comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            
+            const botComment = comments.data.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('🚀 Preview Deployment')
+            );
+            
+            const body = `🚀 **Preview Deployment**
+            
+            Your preview deployment is ready!
+            
+            **🔗 Preview URL:** ${previewUrl}
+            
+            This preview will be updated automatically when you push new commits to this PR.
+            
+            <sub>Deployed from commit: ${context.sha.substring(0, 7)}</sub>`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body
+              });
+            }
+
+  cleanup-preview:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Cleanup Preview
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Delete preview deployment
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: delete firefly-api-pr-${{ github.event.number }}
+        continue-on-error: true
+
+      - name: Comment PR cleanup
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: `🧹 **Preview Cleaned Up**
+              
+              The preview deployment for this PR has been removed.`
+            });
